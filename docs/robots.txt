@@ -1,0 +1,6 @@
+# Allow all web crawlers to access all content
+User-agent: *
+Allow: /
+
+# Sitemap file for search engines
+Sitemap: https://omaryziad050-sys.github.io/Nerza-Agency/sitemap.xml
