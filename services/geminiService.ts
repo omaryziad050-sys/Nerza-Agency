@@ -3,21 +3,30 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
+// Conditionally initialize 'ai' only if the API key exists.
+// This prevents a crash on startup in browser environments where process.env is not available.
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+
+if (!ai) {
   console.warn("API_KEY environment variable not set. Using mocked data for AI content.");
 }
-
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
 
 /**
  * A wrapper around the Gemini API's generateContent method that includes
  * automatic retries with exponential backoff for rate limit errors (429).
  */
 const generateContentWithRetry = async (
-    params: Parameters<typeof ai.models.generateContent>[0],
+    // The type is derived from the class itself to avoid depending on the 'ai' instance which can be null.
+    params: Parameters<InstanceType<typeof GoogleGenAI>['models']['generateContent']>[0],
     retries = 3, 
     delay = 1000
 ): Promise<GenerateContentResponse> => {
+    // Although call sites check for API_KEY, this guard makes the function safer
+    // and satisfies TypeScript's null-check.
+    if (!ai) {
+        throw new Error("Gemini AI client is not initialized. API_KEY is likely missing.");
+    }
+
     try {
         return await ai.models.generateContent(params);
     } catch (error: any) {
@@ -44,6 +53,7 @@ const generateContentWithRetry = async (
 };
 
 const generateWithFallback = async (prompt: string, fallback: string): Promise<string> => {
+    // The API_KEY check also implicitly checks if 'ai' is initialized.
     if (!API_KEY) {
         return fallback;
     }
